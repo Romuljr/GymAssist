@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Itens de Solução/">
     <File Path="docker-compose.yml" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="GymAssist.Api/GymAssist.Api.csproj" />
 </Solution>
