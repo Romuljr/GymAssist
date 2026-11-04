@@ -1,3 +1,4 @@
+
 services:
   pgvector:
     image: pgvector/pgvector:pg17
@@ -37,5 +38,53 @@ services:
 
     restart: unless-stopped
 
+  mongodb:
+    image: mongo:8.0
+    container_name: api-rag-mongodb
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: coti
+      MONGO_INITDB_ROOT_PASSWORD: coti
+      MONGO_INITDB_DATABASE: AgentesIA
+
+    ports:
+      - "27018:27017"
+
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "coti", "--password", "coti", "--authenticationDatabase", "admin", "--eval", "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: api-rag-mongo-express
+
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: coti
+      ME_CONFIG_MONGODB_ADMINPASSWORD: coti
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_ENABLED: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+
+    ports:
+      - "8081:8081"
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    restart: unless-stopped
+
 volumes:
   pgvector_data:
+  mongodb_data:
+  mongodb_config:
