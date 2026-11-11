@@ -10,6 +10,7 @@ namespace GymAssist.Api.Services
     public class AgenteService
     {
         private readonly EmbeddingService _embeddingService;
+        private readonly MemoriaService _memoriaService;
         private readonly NpgsqlDataSource _dataSource;
         private readonly ChatClient _chatClient;
 
@@ -21,10 +22,12 @@ namespace GymAssist.Api.Services
 
         public AgenteService(
             EmbeddingService embeddingService,
+            MemoriaService memoriaService,
             NpgsqlDataSource dataSource,
             IConfiguration configuration)
         {
             _embeddingService = embeddingService;
+            _memoriaService = memoriaService;
             _dataSource = dataSource;
 
             var apiKey = configuration["OpenAI:ApiKey"]!;
@@ -41,6 +44,13 @@ namespace GymAssist.Api.Services
         public async Task<AgenteResponse> ProcessarPergunta(
             AgenteRequest request)
         {
+            #region Buscar memória conversacional
+
+            var historico = await _memoriaService
+                .BuscarHistorico(request.nomeUsuario);
+
+            #endregion
+
             #region Converter a pergunta enviada em Embedding
 
             var embedding = await _embeddingService.Gerar(request.pergunta);
@@ -130,9 +140,15 @@ namespace GymAssist.Api.Services
 
                     18. Seu objetivo é oferecer respostas confiáveis, claras
                         e úteis, auxiliando os usuários em sua jornada fitness.
+
+                    19. Utilize o histórico de conversas apenas para compreender
+                        referências e continuidade da conversa.
                     """),
 
                 new UserChatMessage($"""
+                    HISTÓRICO DAS ÚLTIMAS CONVERSAS:
+                    {historico}
+
                     CONTEXTO DA BASE DE CONHECIMENTO:
                     {contexto}
 
@@ -140,11 +156,14 @@ namespace GymAssist.Api.Services
                     Nome: {request.nomeUsuario}
                     Pergunta: {request.pergunta}
 
-                    Com base exclusivamente no contexto apresentado acima,
-                    elabore uma resposta para o usuário.
+                    Utilize o histórico apenas para compreender
+                    a continuidade da conversa.
 
-                    Retorne a resposta seguindo rigorosamente a estrutura
-                    AgenteResponse.
+                    Utilize a base de conhecimento para responder
+                    informações factuais sobre musculação,
+                    treinamento físico e atividades físicas.
+
+                    Responda à pergunta atual do usuário.
                     """)
             };
 
@@ -190,6 +209,7 @@ namespace GymAssist.Api.Services
                         }
                         """u8.ToArray()
                         ),
+
                         jsonSchemaIsStrict: true
                     )
             };
@@ -223,7 +243,7 @@ namespace GymAssist.Api.Services
 
             #endregion
 
-            #region Retornar a resposta estruturada
+            #region Salvar a conversa e retornar a resposta estruturada
 
             var json = response.Value.Content[0].Text;
 
@@ -233,6 +253,12 @@ namespace GymAssist.Api.Services
                 {
                     PropertyNameCaseInsensitive = true
                 });
+
+            await _memoriaService.Gravar(
+                request.nomeUsuario,
+                request.pergunta,
+                data!.mensagem
+            );
 
             return data!;
 

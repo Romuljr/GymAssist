@@ -12,11 +12,15 @@ builder.Services.AddOpenApi();
 builder.Services.AddPostgreSql(
     builder.Configuration);
 
+builder.Services.AddMongoDb(builder.Configuration);
+
 builder.Services.AddSingleton<EmbeddingService>();
 
 builder.Services.AddScoped<ConhecimentoService>();
 
 builder.Services.AddScoped<AgenteService>();
+
+builder.Services.AddScoped<MemoriaService>();
 
 builder.Services.AddEndpointsApiExplorer();
 
